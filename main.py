@@ -1,0 +1,171 @@
+import os
+import random
+import math
+import pygame
+from os import listdir
+from os.path import isfile, join
+
+from pygame.sprite import _Group
+pygame.init()
+
+pygame.display.set_caption("Platformer")
+
+WIDTH, HEIGHT = 750, 600
+FPS = 60
+PLAYER_VEL = 5
+
+window = pygame.display.set_mode((WIDTH, HEIGHT))
+
+def flip(sprites):
+    return [pygame.transform.flip(sprite, True, False) for sprite in sprites]
+
+def load_sprite_sheets(dir1, dir2, width, height, direction=False):
+    path = join("assets", dir1, dir2)
+    images = [f for f in listdir(path) if isfile(join(path, f))] # load every single file that is inside a character's directory
+
+    all_sprites = {} # key is animation style and value is images in animation
+
+    for image in images:
+        sprite_sheet = pygame.image.load(join(path, image)).convert_alpha() # convert alpha gives transparent background
+
+        sprites = []
+        for i in range(sprite_sheet.get_width() // width):
+            # Need to create a surface that is the desired size of the animation frame
+            # Then, we need to grab the animation frame from the main image
+            # We need to draw that onto the surface and then export the surface
+            surface = pygame.Surface((width, height), pygame.SRCALPHA, 32)
+            rect = pygame.Rect(i * width, 0, width, height)
+            surface.blit(sprite_sheet, (0,0), rect) # source, destination, area of the source that we're drawing
+            sprites.append(pygame.transform.scale2x(surface))
+        
+        if direction:
+            all_sprites[image.replace(".png", "") + "_right"] = sprites
+            all_sprites[image.replace(".png", "") + "_left"] = flip(sprites)
+        else:
+            all_sprites[image.replace(".png", "")] = sprites
+
+    return all_sprites
+
+
+class Player(pygame.sprite.Sprite): # sprites make it really easy to make pixel perfect collision, simplies collision code
+    COLOR = (255, 0, 0) # class variable so it's the same for all players 
+    GRAVITY = 1
+    SPRITES = load_sprite_sheets("MainCharacters", "PinkMan", 32, 32, True)
+    ANIMATION_DELAY = 3
+
+    def __init__(self, x, y, width, height):
+        super().__init__()
+        self.rect = pygame.Rect(x, y, width, height)
+        self.x_vel = 0
+        self.y_vel = 0
+        self.mask = None
+        self.direction = "left" # need to know what direction the sprite is facing for animation purposes
+        self.animation_count = 0 # resetting when changing directions
+        self.fall_count = 0 # counts how long the player has been falling, used to increment gravity velocity
+
+    def move(self, dx, dy):
+        self.rect.x += dx
+        self.rect.y += dy
+    
+    def move_left(self, vel):
+        self.x_vel = -vel
+        if self.direction != "left":
+            self.direction = "left"
+            self.animation_count = 0
+
+    def move_right(self, vel):
+        self.x_vel = vel
+        if self.direction != "right":
+            self.direction = "right"
+            self.animation_count = 0
+    
+    def loop(self, fps): # be called once every frame, moves characters and updates animation
+        #self.y_vel += min(1, (self.fall_count / fps) * self.GRAVITY)
+        self.move(self.x_vel, self.y_vel)
+
+        self.fall_count += 1
+        self.update_sprite()
+
+    def update_sprite(self):
+        sprite_sheet = "idle"
+        if self.x_vel != 0:
+            sprite_sheet = "run"
+        
+        sprite_sheet_name = sprite_sheet + "_" + self.direction
+        sprites = self.SPRITES[sprite_sheet_name]
+        sprite_index = (self.animation_count // self.ANIMATION_DELAY) % len(sprites) # creates dynamic animations
+        self.sprite = sprites[sprite_index]
+        self.animation_count += 1
+        self.update()
+
+    def update(self):
+        # makes sure the rectangle we use to bound is adjusted based on the sprite being used
+        self.rect = self.sprite.get_rect(topleft=(self.rect.x, self.rect.y))
+        self.mask = pygame.mask.from_surface(self.sprite)   # a mask is a mapping of all pixels that exist in the sprite
+                                                            # this allows for pixel perfect collision instead of rectangles colliding
+        
+    def draw(self, win):
+        win.blit(self.sprite, (self.rect.x, self.rect.y))
+
+
+class Object(pygame.sprite.Sprite):
+    def __init__(self, x, y, width, height, name=None):
+        super().__init__()
+
+def get_background(name):
+    # the code MUST be run from the directory that the code lives in
+    image = pygame.image.load(join("assets", "Background", name))
+    _, _, width, height = image.get_rect() # underscores are there because I don't need the other two values
+    tiles = []
+
+    for i in range(WIDTH // width + 1):
+        for j in range(HEIGHT // height + 1):
+            pos = (i * width, j * height)   # denotes the position of the top left hand corner of the current tile
+                                            # when you draw something on the screen in pygame, you draw it from the top
+                                            # left hand corner. This continuously move positions.
+            tiles.append(pos)
+    
+    return tiles, image
+
+def draw(window, background, bg_image, player):
+    for tile in background: # looping through every tile we have and drawing background image at that posiiton
+        window.blit(bg_image, tile)
+
+    player.draw(window)
+
+    pygame.display.update()
+
+def handle_move(player):
+    keys = pygame.key.get_pressed()
+
+    player.x_vel = 0 # resetting velocity
+    if keys[pygame.K_LEFT]:
+        player.move_left(PLAYER_VEL)
+    if keys[pygame.K_RIGHT]:
+        player.move_right(PLAYER_VEL)
+
+def main(window):
+    clock = pygame.time.Clock()
+    background, bg_image = get_background("Blue.png")
+
+    player = Player(100, 100, 50, 50)
+
+    run = True
+    while run:
+        clock.tick(FPS) #regulate frame rate across different devices
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False
+                break
+        
+        player.loop(FPS)
+        handle_move(player)
+        draw(window, background, bg_image, player)
+    
+    pygame.quit()
+    quit()
+
+
+if __name__ == "__main__":
+    main(window)
