@@ -9,7 +9,7 @@ pygame.init()
 
 pygame.display.set_caption("Platformer")
 
-WIDTH, HEIGHT = 750, 600
+WIDTH, HEIGHT = 1000, 800
 FPS = 60
 PLAYER_VEL = 5
 
@@ -157,6 +157,37 @@ class Block(Object):
         self.image.blit(block, (0,0))
         self.mask = pygame.mask.from_surface(self.image)
 
+class Fire(Object):
+    ANIMATION_DELAY = 3
+
+    def __init__(self, x, y, width, height):
+        super().__init__(x, y, width, height, "fire")
+        self.fire = load_sprite_sheets("Traps", "Fire", width, height)
+        self.image = self.fire["off"][0]
+        self.mask = pygame.mask.from_surface(self.image)
+        self.animation_count = 0
+        self.animation_name = "off"
+
+    def on(self):
+        self.animation_name = "on"
+    
+    def off(self):
+        self.animation_name = "off"
+
+    def loop(self):
+        sprites = self.fire[self.animation_name]
+        sprite_index = (self.animation_count // self.ANIMATION_DELAY) % len(sprites)
+        self.image = sprites[sprite_index]
+        self.animation_count += 1
+        
+        self.rect = self.image.get_rect(topleft=(self.rect.x, self.rect.y))
+        self.mask = pygame.mask.from_surface(self.image)
+
+        if self.animation_count // self.ANIMATION_DELAY > len(sprites):
+            self.animation_count = 0 # letting the animation count get too big lags the program
+
+
+
 def get_background(name):
     # the code MUST be run from the directory that the code lives in
     image = pygame.image.load(join("assets", "Background", name))
@@ -231,10 +262,13 @@ def main(window):
     block_size = 96
 
     player = Player(100, 100, 50, 50)
+    fire = Fire(100, HEIGHT - block_size - 64, 16, 32)
+    fire.on()
     floor = [Block(i * block_size, HEIGHT - block_size, block_size) 
              for i in range(-WIDTH, (WIDTH * 2) // block_size)]
     objects = [*floor, Block(0, HEIGHT - block_size * 2, block_size), 
-               Block(block_size * 3, HEIGHT - block_size * 4, block_size)]
+               Block(block_size * 3, HEIGHT - block_size * 4, block_size),
+               fire]
 
     offset_x = 0
     scroll_area_width = 200
@@ -253,6 +287,7 @@ def main(window):
                     player.jump()
         
         player.loop(FPS)
+        fire.loop()
         handle_move(player, objects)
         draw(window, background, bg_image, player, objects, offset_x)
 
