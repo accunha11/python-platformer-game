@@ -5,7 +5,6 @@ import pygame
 from os import listdir
 from os.path import isfile, join
 
-from pygame.sprite import _Group
 pygame.init()
 
 pygame.display.set_caption("Platformer")
@@ -46,6 +45,13 @@ def load_sprite_sheets(dir1, dir2, width, height, direction=False):
 
     return all_sprites
 
+def get_block(size):
+    path = join("assets", "Terrain", "Terrain.png")
+    image = pygame.image.load(path).convert_alpha()
+    surface = pygame.Surface((size, size), pygame.SRCALPHA, 32)
+    rect = pygame.Rect(96, 0, size, size) #change number values and size to load a different image for our block
+    surface.blit(image, (0, 0), rect)
+    return pygame.transform.scale2x(surface)
 
 class Player(pygame.sprite.Sprite): # sprites make it really easy to make pixel perfect collision, simplies collision code
     COLOR = (255, 0, 0) # class variable so it's the same for all players 
@@ -107,10 +113,24 @@ class Player(pygame.sprite.Sprite): # sprites make it really easy to make pixel 
     def draw(self, win):
         win.blit(self.sprite, (self.rect.x, self.rect.y))
 
-
 class Object(pygame.sprite.Sprite):
     def __init__(self, x, y, width, height, name=None):
         super().__init__()
+        # All the properties we need for each sprite
+        self.rect = pygame.Rect(x, y, width, height)
+        self.image = pygame.Surface((width, height), pygame.SRCALPHA)
+        self.width = width
+        self.height = height
+        self.name = name
+    
+    def draw(self, win):
+        win.blit(self.image, (self.rect.x, self.rect.y))
+class Block(Object):
+    def __init__(self, x, y, size):
+        super().__init__(x, y, size, size)
+        block = get_block(size)
+        self.image.blit(block, (0,0))
+        self.mask = pygame.mask.from_surface(self.image)
 
 def get_background(name):
     # the code MUST be run from the directory that the code lives in
@@ -127,9 +147,12 @@ def get_background(name):
     
     return tiles, image
 
-def draw(window, background, bg_image, player):
+def draw(window, background, bg_image, player, objects):
     for tile in background: # looping through every tile we have and drawing background image at that posiiton
         window.blit(bg_image, tile)
+    
+    for obj in objects:
+        obj.draw(window)
 
     player.draw(window)
 
@@ -148,7 +171,10 @@ def main(window):
     clock = pygame.time.Clock()
     background, bg_image = get_background("Blue.png")
 
+    block_size = 96
+
     player = Player(100, 100, 50, 50)
+    floor = [Block(i * block_size, HEIGHT - block_size, block_size) for i in range(-WIDTH, (WIDTH * 2) // block_size)]
 
     run = True
     while run:
@@ -161,7 +187,7 @@ def main(window):
         
         player.loop(FPS)
         handle_move(player)
-        draw(window, background, bg_image, player)
+        draw(window, background, bg_image, player, floor)
     
     pygame.quit()
     quit()
