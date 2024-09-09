@@ -61,6 +61,14 @@ def get_box(size, sheet):
     surface.blit(image, (0, 0), rect)
     return pygame.transform.scale2x(surface)
 
+def get_flag(size, sheet):
+    path = join("assets", "Items", "Checkpoints", "Checkpoint", sheet)
+    image = pygame.image.load(path).convert_alpha()
+    surface = pygame.Surface((size, size), pygame.SRCALPHA, 32)
+    rect = pygame.Rect(0, 0, size, size)
+    surface.blit(image, (0, 0), rect)
+    return pygame.transform.scale2x(surface)
+
 class Player(pygame.sprite.Sprite): # sprites make it really easy to make pixel perfect collision, simplies collision code
     COLOR = (255, 0, 0) # class variable so it's the same for all players 
     GRAVITY = 1
@@ -207,7 +215,6 @@ class Fire(Object):
         if self.animation_count // self.ANIMATION_DELAY > len(sprites):
             self.animation_count = 0 # letting the animation count get too big lags the program
 class Box(Object):
-    ANIMATION_DELAY = 3
 
     def __init__(self, x, y, size):
         super().__init__(x, y, size, size)
@@ -217,6 +224,42 @@ class Box(Object):
         self.animation_count = 0
         self.hit = False
         self.breaking = False
+
+class Flag(Object):
+    ANIMATION_DELAY = 3
+
+    def __init__(self, x, y, width, height):
+        super().__init__(x, y, width, height, "flag")
+        self.sheets = load_sprite_sheets("Items/Checkpoints", "Checkpoint",
+                                       width, height)
+        
+        self.flag = get_flag(width, "Checkpoint (No Flag).png")
+        self.image.blit(self.flag, (0,0))
+        self.mask = pygame.mask.from_surface(self.image)
+        self.animation_count = 0
+        self.touch = False
+        self.flag_out = False
+
+    def make_touch(self):
+        self.touch = True
+    
+    def loop(self):
+        if self.touch:
+            sprite_sheet = "Checkpoint (Flag Out) (64x64)"
+            if self.flag_out:
+                sprite_sheet = "Checkpoint (Flag Idle)(64x64)"
+            sprites = self.sheets[sprite_sheet]
+            sprite_index = (self.animation_count // self.ANIMATION_DELAY) % len(sprites)
+            self.image = sprites[sprite_index]
+            self.animation_count += 1
+                    
+            self.rect = self.image.get_rect(topleft=(self.rect.x, self.rect.y))
+            self.mask = pygame.mask.from_surface(self.image)
+
+            if self.animation_count // self.ANIMATION_DELAY > len(sprites):
+                self.animation_count = 0
+                self.flag_out = True
+
 
 def get_background(name):
     # the code MUST be run from the directory that the code lives in
@@ -288,6 +331,8 @@ def handle_move(player, objects):
     for obj in to_check:
         if obj and obj.name == "fire":
             player.make_hit()
+        if obj and obj.name == "flag":
+            obj.make_touch()
 
 def main(window):
     clock = pygame.time.Clock()
@@ -301,18 +346,27 @@ def main(window):
     fire.on()
 
     box = Box(block_size*8, HEIGHT - block_size * 3, box_size)
+    flag = Flag(block_size*20, HEIGHT - block_size * 5 - 128, 128, 128)
 
     floor = [Block(i * block_size, HEIGHT - block_size, block_size) 
-             for i in range(0, (WIDTH * 4) // block_size)]
+             for i in range(0, (WIDTH * 2) // block_size)]
+    
     floor[6] = Block(block_size * 6, HEIGHT - block_size // 3, block_size)
 
-    begin_wall = [Block(0, HEIGHT - block_size * 2, block_size), Block(0, HEIGHT - block_size * 3, block_size),
-                  Block(0, HEIGHT - block_size * 4, block_size), Block(0, HEIGHT - block_size * 5, block_size),
-                  Block(0, HEIGHT - block_size * 6, block_size), Block(0, HEIGHT - block_size * 7, block_size),
-                  Block(0, HEIGHT - block_size * 8, block_size)]
+    begin_wall = [Block(0, HEIGHT - block_size * i, block_size) for i in range(0,9)]
+
+    extra_blocks = [Block(block_size * 6, HEIGHT - block_size * 3, block_size),
+                    Block(block_size * 9, HEIGHT - block_size * 4, block_size),
+                    Block(block_size * 10, HEIGHT - block_size * 4, block_size),
+                    Block(block_size * 12, HEIGHT - block_size * 3, block_size),
+                    Block(block_size * 13, HEIGHT - block_size * 3, block_size),
+                    Block(block_size * 15, HEIGHT - block_size * 4, block_size),
+                    Block(block_size * 16, HEIGHT - block_size * 4, block_size)]
     
-    objects = [*floor, *begin_wall, 
-               Block(block_size * 6, HEIGHT - block_size * 3, block_size), fire, box]
+    ending_blocks = [Block(block_size * 19, HEIGHT - block_size * 5, block_size),
+                     Block(block_size * 20, HEIGHT - block_size * 5, block_size)]
+    
+    objects = [*floor, *begin_wall, *extra_blocks, *ending_blocks, fire, flag]
 
     offset_x = 0
     scroll_area_width = block_size
@@ -332,6 +386,7 @@ def main(window):
         
         player.loop(FPS)
         fire.loop()
+        flag.loop()
         handle_move(player, objects)
         draw(window, background, bg_image, player, objects, offset_x)
 
