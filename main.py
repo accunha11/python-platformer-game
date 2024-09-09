@@ -68,6 +68,15 @@ class Player(pygame.sprite.Sprite): # sprites make it really easy to make pixel 
         self.direction = "left" # need to know what direction the sprite is facing for animation purposes
         self.animation_count = 0 # resetting when changing directions
         self.fall_count = 0 # counts how long the player has been falling, used to increment gravity velocity
+        self.jump_count = 0
+
+    def jump(self):
+        self.y_vel = -self.GRAVITY * 8 # changing velocity going upwards and letting gravity bring it down
+        self.animation_count = 0
+        self.jump_count += 1
+        if self.jump_count == 1: 
+            self.fall_count = 0 # removing gravity so when we jump up again it's not taken into account
+        
 
     def move(self, dx, dy):
         self.rect.x += dx
@@ -103,7 +112,14 @@ class Player(pygame.sprite.Sprite): # sprites make it really easy to make pixel 
 
     def update_sprite(self):
         sprite_sheet = "idle"
-        if self.x_vel != 0:
+        if self.y_vel < 0:
+            if self.jump_count == 1:
+                sprite_sheet = "jump"
+            elif self.jump_count == 2:
+                sprite_sheet = "double_jump"
+        elif self.y_vel > self.GRAVITY * 2: # make sure a significant gravity triggers the fall state
+            sprite_sheet = "fall"
+        elif self.x_vel != 0:
             sprite_sheet = "run"
         
         sprite_sheet_name = sprite_sheet + "_" + self.direction
@@ -211,6 +227,10 @@ def main(window):
             if event.type == pygame.QUIT:
                 run = False
                 break
+                
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE and player.jump_count < 2:
+                    player.jump()
         
         player.loop(FPS)
         handle_move(player, floor)
