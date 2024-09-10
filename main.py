@@ -53,14 +53,6 @@ def get_block(size):
     surface.blit(image, (0, 0), rect)
     return pygame.transform.scale2x(surface)
 
-def get_score(size, sheet):
-    path = join("assets", "Items", "Fruits", sheet)
-    image = pygame.image.load(path).convert_alpha()
-    surface = pygame.Surface((size, size), pygame.SRCALPHA, 32)
-    rect = pygame.Rect(0, 0, size, size)
-    surface.blit(image, (0, 0), rect)
-    return pygame.transform.scale2x(surface)
-
 class Player(pygame.sprite.Sprite): # sprites make it really easy to make pixel perfect collision, simplies collision code
     COLOR = (255, 0, 0) # class variable so it's the same for all players 
     GRAVITY = 1
@@ -80,8 +72,6 @@ class Player(pygame.sprite.Sprite): # sprites make it really easy to make pixel 
         self.hit = False
         self.hit_count = 0
         self.score = 0
-        self.scoring = False
-        self.score_count = 0
 
     def jump(self):
         self.y_vel = -self.GRAVITY * 8 # changing velocity going upwards and letting gravity bring it down
@@ -100,7 +90,6 @@ class Player(pygame.sprite.Sprite): # sprites make it really easy to make pixel 
     
     def make_score(self):
         self.score += 1
-        print(self.score)
     
     def move_left(self, vel):
         self.x_vel = -vel
@@ -123,12 +112,6 @@ class Player(pygame.sprite.Sprite): # sprites make it really easy to make pixel 
         if self.hit_count > fps * 2:
             self.hit = False
             self.hit_count = 0
-        
-        if self.scoring:
-            self.score_count += 1
-        if self.score_count > fps:
-            self.scoring = False
-            self.score += 1
 
         self.fall_count += 1
         self.update_sprite()
@@ -256,8 +239,9 @@ class Score(Object):
 
     def __init__(self, x, y, size, fruit_name):
         super().__init__(x, y, size, size, "score")
-        self.score = get_score(size, fruit_name+".png")
-        self.image.blit(self.score, (0,0))
+        self.score = load_sprite_sheets("Items", "Fruits",
+                                       size, size)
+        self.image = self.score[fruit_name][0]
         self.mask = pygame.mask.from_surface(self.image)
 
 class Flag(Object):
@@ -271,6 +255,7 @@ class Flag(Object):
         self.mask = pygame.mask.from_surface(self.image)
         self.animation_count = 0
         self.animation_name = "Checkpoint (No Flag)"
+        self.end_game = False
 
     def make_touch(self):
         if self.animation_name == "Checkpoint (No Flag)":
@@ -290,6 +275,7 @@ class Flag(Object):
             self.animation_count = 0
             if self.animation_name == "Checkpoint (Flag Out) (64x64)":
                 self.animation_name = "Checkpoint (Flag Idle)(64x64)"
+                self.end_game = True
 
 class Fruit(Object):
     ANIMATION_DELAY = 3
@@ -350,15 +336,15 @@ def get_background(name):
     
     return tiles, image
 
-def draw(window, background, bg_image, player, objects, offset_x):
+def draw(window, background, bg_image, player, objects, offset_x, scoring):
     for tile in background: # looping through every tile we have and drawing background image at that posiiton
         window.blit(bg_image, tile)
     
+    for score in scoring:
+        score.draw(window, 0)
+    
     for obj in objects:
-        if obj.name == "score":
-            obj.draw(window, 0)
-        else:
-            obj.draw(window, offset_x)
+        obj.draw(window, offset_x)
 
     player.draw(window, offset_x)
 
@@ -444,11 +430,14 @@ def main(window):
     fire = Fire(block_size*6.35, fire_height - block_size + (block_size * 2) // 3, 16, 32)
     fire.on()
 
-    box = Box(block_size*6.35, HEIGHT - block_size * 3, box_width, box_heigth)
-    hidden_fruit = Fruit(block_size*6.35 + hidden_fruit_width, hidden_fruit_height - block_size * 3, fruit_size, "Strawberry", False)
+    box = Box(block_size*6.25, HEIGHT - block_size * 2.85, box_width, box_heigth)
+    hidden_fruit = Fruit(block_size*6.25 + hidden_fruit_width, hidden_fruit_height - block_size * 2.85, fruit_size, "Strawberry", False)
 
     flag = Flag(block_size*20, flag_height - block_size * 5, flag_size)
-    fruit = Fruit(block_size*3, fruit_height - block_size, fruit_size, "Strawberry")
+    fruits = [Fruit(block_size* 9 + 15, fruit_height - block_size * 4, fruit_size, "Strawberry"),
+              Fruit(block_size* 10 + 15, fruit_height - block_size * 4, fruit_size, "Strawberry"),
+              Fruit(block_size* 15 + 15, fruit_height - block_size * 4, fruit_size, "Strawberry"),
+              Fruit(block_size* 16 + 15, fruit_height - block_size * 4, fruit_size, "Strawberry"),]
 
     floor = [Block(i * block_size, HEIGHT - block_size, block_size) 
              for i in range(0, (WIDTH * 2) // block_size)]
@@ -467,7 +456,7 @@ def main(window):
     ending_blocks = [Block(block_size * 19, HEIGHT - block_size * 5, block_size),
                      Block(block_size * 20, HEIGHT - block_size * 5, block_size)]
     
-    objects = [*floor, *begin_wall, *extra_blocks, *ending_blocks, fire, flag, box, fruit, hidden_fruit]
+    objects = [*floor, *begin_wall, *extra_blocks, *ending_blocks, fire, flag, box, *fruits, hidden_fruit]
 
     offset_x = 0
     scroll_area_width = block_size
@@ -481,7 +470,7 @@ def main(window):
                 run = False
                 break
                 
-            if event.type == pygame.KEYDOWN and not False:
+            if event.type == pygame.KEYDOWN and not flag.end_game:
                 if event.key == pygame.K_SPACE and player.jump_count < 2:
                     player.jump()
         
@@ -494,10 +483,14 @@ def main(window):
             hidden_fruit.change_visibility()
 
         hidden_fruit.loop(player)
-        fruit.loop(player)
 
-        handle_move(player, objects, False)
-        draw(window, background, bg_image, player, objects, offset_x)
+        for fruit in fruits:
+            fruit.loop(player)
+
+        scoring = [Score(WIDTH - fruit_size * i - 75, 25, fruit_size, "Strawberry") for i in range(player.score)]
+
+        handle_move(player, objects, flag.end_game)
+        draw(window, background, bg_image, player, objects, offset_x, scoring)
 
         if((player.rect.right - offset_x >= WIDTH - scroll_area_width * 2) and (player.x_vel > 0)) or (
                 (player.rect.left - offset_x <= scroll_area_width) and (player.x_vel < 0) and 
