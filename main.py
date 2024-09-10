@@ -53,14 +53,6 @@ def get_block(size):
     surface.blit(image, (0, 0), rect)
     return pygame.transform.scale2x(surface)
 
-def get_box(size, sheet):
-    path = join("assets", "Items", "Boxes", "Box1", sheet)
-    image = pygame.image.load(path).convert_alpha()
-    surface = pygame.Surface((size, size), pygame.SRCALPHA, 32)
-    rect = pygame.Rect(0, 0, size, size)
-    surface.blit(image, (0, 0), rect)
-    return pygame.transform.scale2x(surface)
-
 def get_score(size, sheet):
     path = join("assets", "Items", "Fruits", sheet)
     image = pygame.image.load(path).convert_alpha()
@@ -88,6 +80,8 @@ class Player(pygame.sprite.Sprite): # sprites make it really easy to make pixel 
         self.hit = False
         self.hit_count = 0
         self.score = 0
+        self.scoring = False
+        self.score_count = 0
 
     def jump(self):
         self.y_vel = -self.GRAVITY * 8 # changing velocity going upwards and letting gravity bring it down
@@ -105,8 +99,8 @@ class Player(pygame.sprite.Sprite): # sprites make it really easy to make pixel 
         self.hit_count = 0
     
     def make_score(self):
-        self.score += 1
-        print(self.score)
+        self.scoring = True
+        self.score_count = 0
     
     def move_left(self, vel):
         self.x_vel = -vel
@@ -129,6 +123,12 @@ class Player(pygame.sprite.Sprite): # sprites make it really easy to make pixel 
         if self.hit_count > fps * 2:
             self.hit = False
             self.hit_count = 0
+        
+        if self.scoring:
+            self.score_count += 1
+        if self.score_count > fps:
+            self.scoring = False
+            self.score += 1
 
         self.fall_count += 1
         self.update_sprite()
@@ -192,7 +192,7 @@ class Block(Object):
         self.mask = pygame.mask.from_surface(self.image)
 
 class Fire(Object):
-    ANIMATION_DELAY = 3
+    ANIMATION_DELAY = 4
 
     def __init__(self, x, y, width, height):
         super().__init__(x, y, width, height, "fire")
@@ -222,41 +222,36 @@ class Fire(Object):
 class Box(Object):
     ANIMATION_DELAY = 3
 
-    def __init__(self, x, y, width, height):
+    def __init__(self, x, y, width, height, has_fruit=False, fruit_name="Apple"):
         super().__init__(x, y, width, height, "box")
         self.box = load_sprite_sheets("Items/Boxes", "Box2",
                                        width, height)
         self.image = self.box["Idle"][0]
         self.mask = pygame.mask.from_surface(self.image)
         self.animation_count = 0
-        self.hit = False
-        self.breaking = False
-        self.continue_animation = True
+        self.animation_name = "Idle"
 
     def make_hit(self):
-        self.hit = True
+        if self.animation_name == "Idle":
+            self.animation_name = "Hit (28x24)"
     
     def loop(self):
-        if self.hit:
-            sprite_sheet = "Hit (28x24)"
-            if self.breaking:
-                sprite_sheet = "Break"
-            sprites = self.box[sprite_sheet]
-            print(sprites)
-            sprite_index = (self.animation_count // self.ANIMATION_DELAY) % len(sprites)
-            self.image = sprites[sprite_index]
-            self.animation_count += 1
+        sprites = self.box[self.animation_name]
+        sprite_index = (self.animation_count // self.ANIMATION_DELAY) % len(sprites)
+        self.image = sprites[sprite_index]
+        self.animation_count += 1
                     
-            self.rect = self.image.get_rect(topleft=(self.rect.x, self.rect.y))
-            self.mask = pygame.mask.from_surface(self.image)
+        self.rect = self.image.get_rect(topleft=(self.rect.x, self.rect.y))
+        self.mask = pygame.mask.from_surface(self.image)
 
-            if self.animation_count // self.ANIMATION_DELAY > len(sprites):
-                self.animation_count = 0
-                if self.breaking:
-                    self.continue_animation = False
-                    self.rect = self.image.get_rect(topleft=(-1000, -1000))
-                    self.mask = pygame.mask.from_surface(self.image)
-                self.breaking = True
+        if sprite_index == (len(sprites) - 1):
+            self.animation_count = 0
+            if self.animation_name == "Hit (28x24)":
+                self.animation_name = "Break"
+            elif self.animation_name == "Break":
+                self.rect = self.image.get_rect(topleft=(-1000, -1000))
+                self.mask = pygame.mask.from_surface(self.image)
+
 
 class Score(Object):
 
@@ -276,86 +271,60 @@ class Flag(Object):
         self.image = self.flag["Checkpoint (No Flag)"][0]
         self.mask = pygame.mask.from_surface(self.image)
         self.animation_count = 0
-        self.touch = False
-        self.flag_out = False
+        self.animation_name = "Checkpoint (No Flag)"
 
     def make_touch(self):
-        self.touch = True
+        if self.animation_name == "Checkpoint (No Flag)":
+            self.animation_name = "Checkpoint (Flag Out) (64x64)"
+            self.animation_count = 0
     
     def loop(self):
-        if self.touch:
-            sprite_sheet = "Checkpoint (Flag Out) (64x64)"
-            if self.flag_out:
-                sprite_sheet = "Checkpoint (Flag Idle)(64x64)"
-            sprites = self.flag[sprite_sheet]
-            sprite_index = (self.animation_count // self.ANIMATION_DELAY) % len(sprites)
-            self.image = sprites[sprite_index]
-            self.animation_count += 1
+        sprites = self.flag[self.animation_name]
+        sprite_index = (self.animation_count // self.ANIMATION_DELAY) % len(sprites)
+        self.image = sprites[sprite_index]
+        self.animation_count += 1
                     
-            self.rect = self.image.get_rect(topleft=(self.rect.x, self.rect.y))
-            self.mask = pygame.mask.from_surface(self.image)
+        self.rect = self.image.get_rect(topleft=(self.rect.x, self.rect.y))
+        self.mask = pygame.mask.from_surface(self.image)
 
-            if self.animation_count // self.ANIMATION_DELAY > len(sprites):
-                self.animation_count = 0
-                self.flag_out = True
+        if sprite_index == (len(sprites) - 1):
+            self.animation_count = 0
+            if self.animation_name == "Checkpoint (Flag Out) (64x64)":
+                self.animation_name = "Checkpoint (Flag Idle)(64x64)"
 
 class Fruit(Object):
     ANIMATION_DELAY = 3
 
-    def __init__(self, x, y, size, name, hidden=False):
+    def __init__(self, x, y, size, fruit_name, hidden=False):
         super().__init__(x, y, size, size, "fruit")
         self.fruit = load_sprite_sheets("Items", "Fruits",
                                        size, size)
-        self.image = self.fruit[name][0]
+        self.image = self.fruit[fruit_name][0]
         self.mask = pygame.mask.from_surface(self.image)
         self.animation_count = 0
-        self.touch = False
-        self.continue_animation = True
-        self.fruit_name = name
-        self.is_hidden = hidden
+        self.fruit_name = fruit_name
+        self.animation_name = fruit_name
 
     def make_touch(self, player):
-        if not self.touch:
-            player.make_score()
+        if self.animation_name == self.fruit_name:
+            self.animation_name = "Collected"
             self.animation_count = 0
-        self.touch = True
+            player.make_score()
 
     def loop(self):
-        if self.touch:
-            self.collected()
-        else:
-            sprite_sheet = self.fruit_name
-        
-            sprites = self.fruit[sprite_sheet]
-            sprite_index = (self.animation_count // self.ANIMATION_DELAY) % len(sprites)
-            self.image = sprites[sprite_index]
-            self.animation_count += 1
-                        
-            self.rect = self.image.get_rect(topleft=(self.rect.x, self.rect.y))
-            self.mask = pygame.mask.from_surface(self.image)
-
-            if self.animation_count // self.ANIMATION_DELAY > len(sprites):
-                self.animation_count = 0
-                if self.touch:
-                    self.rect = self.image.get_rect(topleft=(-1000, -1000))
-                    self.mask = pygame.mask.from_surface(self.image)
-                    self.continue_animation = False
-    
-    def collected(self):
-        sprite_sheet = "Collected"
-        sprites = self.fruit[sprite_sheet]
-
-        sprite_index = (self.animation_count // (self.ANIMATION_DELAY)) % len(sprites)
+        sprites = self.fruit[self.animation_name]
+        sprite_index = (self.animation_count // self.ANIMATION_DELAY) % len(sprites)
         self.image = sprites[sprite_index]
         self.animation_count += 1
-                        
+                    
         self.rect = self.image.get_rect(topleft=(self.rect.x, self.rect.y))
         self.mask = pygame.mask.from_surface(self.image)
-        
-        if self.animation_count // (self.ANIMATION_DELAY*0.8) > len(sprites):
-            self.continue_animation = False
-            self.rect = self.image.get_rect(topleft=(-1000, -1000))
-            self.mask = pygame.mask.from_surface(self.image)
+
+        if sprite_index == (len(sprites) - 1):
+            self.animation_count = 0
+            if self.animation_name == "Collected":
+                self.rect = self.image.get_rect(topleft=(-1000, -1000))
+                self.mask = pygame.mask.from_surface(self.image)
 
 
 
@@ -429,8 +398,8 @@ def handle_move(player, objects, game_over):
     keys = pygame.key.get_pressed()
 
     player.x_vel = 0 # resetting velocity
-    collide_left = collide(player, objects, -PLAYER_VEL * 3) # multiplies by 2 so there's space between the blocks so we don't get sprite glitches
-    collide_right = collide(player, objects, PLAYER_VEL * 3)
+    collide_left = collide(player, objects, -PLAYER_VEL * 2) # multiplies by 2 so there's space between the blocks so we don't get sprite glitches
+    collide_right = collide(player, objects, PLAYER_VEL * 2)
 
     if keys[pygame.K_LEFT] and not collide_left and not game_over:
         player.move_left(PLAYER_VEL)
@@ -463,7 +432,7 @@ def main(window):
     fire = Fire(block_size*6.35, fire_height - block_size + (block_size * 2) // 3, 16, 32)
     fire.on()
 
-    box = Box(block_size*8, HEIGHT - block_size * 3, 28, 24)
+    box = Box(block_size*8, HEIGHT - block_size * 3, 28, 24, True)
     flag = Flag(block_size*20, flag_height - block_size * 5, flag_size)
     fruit = Fruit(block_size*3, fruit_height - block_size, fruit_size, "Strawberry")
 
@@ -484,7 +453,7 @@ def main(window):
     ending_blocks = [Block(block_size * 19, HEIGHT - block_size * 5, block_size),
                      Block(block_size * 20, HEIGHT - block_size * 5, block_size)]
     
-    objects = [*floor, *begin_wall, *extra_blocks, *ending_blocks, fire, flag, fruit, box]
+    objects = [*floor, *begin_wall, *extra_blocks, *ending_blocks, fire, flag, box, fruit]
 
     offset_x = 0
     scroll_area_width = block_size
@@ -498,21 +467,17 @@ def main(window):
                 run = False
                 break
                 
-            if event.type == pygame.KEYDOWN and not flag.touch:
+            if event.type == pygame.KEYDOWN and not False:
                 if event.key == pygame.K_SPACE and player.jump_count < 2:
                     player.jump()
-
-        if player.score > 0:
-            objects.append(Score(WIDTH - 50 - (player.score * fruit_size), 25, fruit_size*2, "Strawberry"))
         
         player.loop(FPS)
         fire.loop()
         flag.loop()
-        if fruit.continue_animation:
-            fruit.loop()
-        if box.continue_animation:
-            box.loop()
-        handle_move(player, objects, flag.touch)
+        box.loop()
+        fruit.loop()
+
+        handle_move(player, objects, False)
         draw(window, background, bg_image, player, objects, offset_x)
 
         if((player.rect.right - offset_x >= WIDTH - scroll_area_width * 2) and (player.x_vel > 0)) or (
