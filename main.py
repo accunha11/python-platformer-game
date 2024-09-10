@@ -99,8 +99,8 @@ class Player(pygame.sprite.Sprite): # sprites make it really easy to make pixel 
         self.hit_count = 0
     
     def make_score(self):
-        self.scoring = True
-        self.score_count = 0
+        self.score += 1
+        print(self.score)
     
     def move_left(self, vel):
         self.x_vel = -vel
@@ -172,7 +172,7 @@ class Player(pygame.sprite.Sprite): # sprites make it really easy to make pixel 
     def draw(self, win, offset_x):
         win.blit(self.sprite, (self.rect.x - offset_x, self.rect.y))
 
-class Object(pygame.sprite.Sprite):
+class Object(pygame.sprite.DirtySprite):
     def __init__(self, x, y, width, height, name=None):
         super().__init__()
         # All the properties we need for each sprite
@@ -181,7 +181,6 @@ class Object(pygame.sprite.Sprite):
         self.width = width
         self.height = height
         self.name = name
-    
     def draw(self, win, offset_x):
         win.blit(self.image, (self.rect.x - offset_x, self.rect.y))
 class Block(Object):
@@ -222,7 +221,7 @@ class Fire(Object):
 class Box(Object):
     ANIMATION_DELAY = 3
 
-    def __init__(self, x, y, width, height, has_fruit=False, fruit_name="Apple"):
+    def __init__(self, x, y, width, height):
         super().__init__(x, y, width, height, "box")
         self.box = load_sprite_sheets("Items/Boxes", "Box2",
                                        width, height)
@@ -295,38 +294,46 @@ class Flag(Object):
 class Fruit(Object):
     ANIMATION_DELAY = 3
 
-    def __init__(self, x, y, size, fruit_name, hidden=False):
+    def __init__(self, x, y, size, fruit_name, visible=True):
         super().__init__(x, y, size, size, "fruit")
         self.fruit = load_sprite_sheets("Items", "Fruits",
                                        size, size)
-        self.image = self.fruit[fruit_name][0]
-        self.mask = pygame.mask.from_surface(self.image)
+        if visible:
+            self.image = self.fruit[fruit_name][0]
+            self.mask = pygame.mask.from_surface(self.image)
         self.animation_count = 0
         self.fruit_name = fruit_name
         self.animation_name = fruit_name
+        self.collected = False
+        self.visible = visible
+    
+    def change_visibility(self):
+        self.visible = not self.visible
 
-    def make_touch(self, player):
+    def make_touch(self):
         if self.animation_name == self.fruit_name:
             self.animation_name = "Collected"
             self.animation_count = 0
-            player.make_score()
 
-    def loop(self):
-        sprites = self.fruit[self.animation_name]
-        sprite_index = (self.animation_count // self.ANIMATION_DELAY) % len(sprites)
-        self.image = sprites[sprite_index]
-        self.animation_count += 1
-                    
-        self.rect = self.image.get_rect(topleft=(self.rect.x, self.rect.y))
-        self.mask = pygame.mask.from_surface(self.image)
+    def loop(self, player):
+        if self.visible and not self.collected:
+            sprites = self.fruit[self.animation_name]
+            sprite_index = (self.animation_count // self.ANIMATION_DELAY) % len(sprites)
+            self.image = sprites[sprite_index]
+            self.animation_count += 1
+                            
+            self.rect = self.image.get_rect(topleft=(self.rect.x, self.rect.y))
+            self.mask = pygame.mask.from_surface(self.image)
 
-        if sprite_index == (len(sprites) - 1):
-            self.animation_count = 0
-            if self.animation_name == "Collected":
-                self.rect = self.image.get_rect(topleft=(-1000, -1000))
-                self.mask = pygame.mask.from_surface(self.image)
-
-
+            if sprite_index == (len(sprites) - 1):
+                self.animation_count = 0
+                if self.animation_name == "Collected":
+                    if not self.collected:
+                        player.make_score()
+                        self.collected = True
+                        self.visible = False
+                        self.rect = self.image.get_rect(topleft=(-1000, -1000))
+                        self.mask = pygame.mask.from_surface(self.image)
 
 def get_background(name):
     # the code MUST be run from the directory that the code lives in
@@ -361,18 +368,20 @@ def handle_vertical_collision(player, objects, dy):
     collided_objects = []
     for obj in objects:
         if pygame.sprite.collide_mask(player, obj):
-            if obj.name == "fruit":
-                pass
-            elif dy > 0:
-                player.rect.bottom = obj.rect.top
-                player.landed()
-            elif dy < 0:
-                player.rect.top = obj.rect.bottom # makes sure we don't go through the objects
-                player.hit_head()
-                if obj.name == "box":
-                    obj.make_hit()
+            if obj.name != "fruit":
+                
+                if dy > 0:
+                    player.rect.bottom = obj.rect.top
+                    player.landed()
+                elif dy < 0:
+                    player.rect.top = obj.rect.bottom # makes sure we don't go through the objects
+                    player.hit_head()
+                    if obj.name == "box":
+                        obj.make_hit()
 
-            collided_objects.append(obj)
+                collided_objects.append(obj)
+            else:
+                obj.make_touch()
     
     return collided_objects
 
@@ -383,10 +392,11 @@ def collide(player, objects, dx):
 
     for obj in objects:
         if pygame.sprite.collide_mask(player, obj):
-            collided_object = obj
             if obj.name == "fruit":
-                return collided_object
+                obj.make_touch()
+                break
             else:
+                collided_object = obj
                 break
 
     player.move(-dx, 0)
@@ -413,8 +423,6 @@ def handle_move(player, objects, game_over):
             player.make_hit()
         if obj and obj.name == "flag":
             obj.make_touch()
-        if obj and obj.name == "fruit":
-            obj.make_touch(player)
 
 def main(window):
     clock = pygame.time.Clock()
@@ -423,16 +431,22 @@ def main(window):
     block_size = 96
     flag_size = 64
     fruit_size = 32
+    box_width = 28
+    box_heigth = 24
 
     fruit_height = HEIGHT - 64
     flag_height = HEIGHT - 128
-    fire_height = HEIGHT - 64
+    fire_height = HEIGHT - 64  
+    hidden_fruit_height = HEIGHT - 9
+    hidden_fruit_width = -5
 
     player = Player(100, 100, 50, 50)
     fire = Fire(block_size*6.35, fire_height - block_size + (block_size * 2) // 3, 16, 32)
     fire.on()
 
-    box = Box(block_size*8, HEIGHT - block_size * 3, 28, 24, True)
+    box = Box(block_size*6.35, HEIGHT - block_size * 3, box_width, box_heigth)
+    hidden_fruit = Fruit(block_size*6.35 + hidden_fruit_width, hidden_fruit_height - block_size * 3, fruit_size, "Strawberry", False)
+
     flag = Flag(block_size*20, flag_height - block_size * 5, flag_size)
     fruit = Fruit(block_size*3, fruit_height - block_size, fruit_size, "Strawberry")
 
@@ -453,7 +467,7 @@ def main(window):
     ending_blocks = [Block(block_size * 19, HEIGHT - block_size * 5, block_size),
                      Block(block_size * 20, HEIGHT - block_size * 5, block_size)]
     
-    objects = [*floor, *begin_wall, *extra_blocks, *ending_blocks, fire, flag, box, fruit]
+    objects = [*floor, *begin_wall, *extra_blocks, *ending_blocks, fire, flag, box, fruit, hidden_fruit]
 
     offset_x = 0
     scroll_area_width = block_size
@@ -475,7 +489,12 @@ def main(window):
         fire.loop()
         flag.loop()
         box.loop()
-        fruit.loop()
+
+        if box.animation_name == "Break":
+            hidden_fruit.change_visibility()
+
+        hidden_fruit.loop(player)
+        fruit.loop(player)
 
         handle_move(player, objects, False)
         draw(window, background, bg_image, player, objects, offset_x)
