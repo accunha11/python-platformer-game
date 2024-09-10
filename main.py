@@ -220,31 +220,59 @@ class Fire(Object):
         if self.animation_count // self.ANIMATION_DELAY > len(sprites):
             self.animation_count = 0 # letting the animation count get too big lags the program
 class Box(Object):
+    ANIMATION_DELAY = 3
 
-    def __init__(self, x, y, size):
-        super().__init__(x, y, size, size)
-        self.box = get_box(size, "Idle.png")
-        self.image.blit(self.box, (0,0))
+    def __init__(self, x, y, width, height):
+        super().__init__(x, y, width, height, "box")
+        self.box = load_sprite_sheets("Items/Boxes", "Box2",
+                                       width, height)
+        self.image = self.box["Idle"][0]
         self.mask = pygame.mask.from_surface(self.image)
         self.animation_count = 0
         self.hit = False
         self.breaking = False
+        self.continue_animation = True
+
+    def make_hit(self):
+        self.hit = True
+    
+    def loop(self):
+        if self.hit:
+            sprite_sheet = "Hit (28x24)"
+            if self.breaking:
+                sprite_sheet = "Break"
+            sprites = self.box[sprite_sheet]
+            print(sprites)
+            sprite_index = (self.animation_count // self.ANIMATION_DELAY) % len(sprites)
+            self.image = sprites[sprite_index]
+            self.animation_count += 1
+                    
+            self.rect = self.image.get_rect(topleft=(self.rect.x, self.rect.y))
+            self.mask = pygame.mask.from_surface(self.image)
+
+            if self.animation_count // self.ANIMATION_DELAY > len(sprites):
+                self.animation_count = 0
+                if self.breaking:
+                    self.continue_animation = False
+                    self.rect = self.image.get_rect(topleft=(-1000, -1000))
+                    self.mask = pygame.mask.from_surface(self.image)
+                self.breaking = True
 
 class Score(Object):
 
-    def __init__(self, x, y, size):
+    def __init__(self, x, y, size, fruit_name):
         super().__init__(x, y, size, size, "score")
-        self.score = get_score(size, "Apple.png")
+        self.score = get_score(size, fruit_name+".png")
         self.image.blit(self.score, (0,0))
         self.mask = pygame.mask.from_surface(self.image)
 
 class Flag(Object):
     ANIMATION_DELAY = 3
 
-    def __init__(self, x, y, width, height):
-        super().__init__(x, y, width, height, "flag")
+    def __init__(self, x, y, size):
+        super().__init__(x, y, size, size, "flag")
         self.flag = load_sprite_sheets("Items/Checkpoints", "Checkpoint",
-                                       width, height)
+                                       size, size)
         self.image = self.flag["Checkpoint (No Flag)"][0]
         self.mask = pygame.mask.from_surface(self.image)
         self.animation_count = 0
@@ -274,15 +302,17 @@ class Flag(Object):
 class Fruit(Object):
     ANIMATION_DELAY = 3
 
-    def __init__(self, x, y, width, height):
-        super().__init__(x, y, width, height, "fruit")
+    def __init__(self, x, y, size, name, hidden=False):
+        super().__init__(x, y, size, size, "fruit")
         self.fruit = load_sprite_sheets("Items", "Fruits",
-                                       width, height)
-        self.image = self.fruit["Apple"][0]
+                                       size, size)
+        self.image = self.fruit[name][0]
         self.mask = pygame.mask.from_surface(self.image)
         self.animation_count = 0
         self.touch = False
         self.continue_animation = True
+        self.fruit_name = name
+        self.is_hidden = hidden
 
     def make_touch(self, player):
         if not self.touch:
@@ -294,7 +324,7 @@ class Fruit(Object):
         if self.touch:
             self.collected()
         else:
-            sprite_sheet = "Apple"
+            sprite_sheet = self.fruit_name
         
             sprites = self.fruit[sprite_sheet]
             sprite_index = (self.animation_count // self.ANIMATION_DELAY) % len(sprites)
@@ -307,6 +337,8 @@ class Fruit(Object):
             if self.animation_count // self.ANIMATION_DELAY > len(sprites):
                 self.animation_count = 0
                 if self.touch:
+                    self.rect = self.image.get_rect(topleft=(-1000, -1000))
+                    self.mask = pygame.mask.from_surface(self.image)
                     self.continue_animation = False
     
     def collected(self):
@@ -368,6 +400,8 @@ def handle_vertical_collision(player, objects, dy):
             elif dy < 0:
                 player.rect.top = obj.rect.bottom # makes sure we don't go through the objects
                 player.hit_head()
+                if obj.name == "box":
+                    obj.make_hit()
 
             collided_objects.append(obj)
     
@@ -391,16 +425,16 @@ def collide(player, objects, dx):
 
     return collided_object
 
-def handle_move(player, objects):
+def handle_move(player, objects, game_over):
     keys = pygame.key.get_pressed()
 
     player.x_vel = 0 # resetting velocity
-    collide_left = collide(player, objects, -PLAYER_VEL * 2) # multiplies by 2 so there's space between the blocks so we don't get sprite glitches
-    collide_right = collide(player, objects, PLAYER_VEL * 2)
+    collide_left = collide(player, objects, -PLAYER_VEL * 3) # multiplies by 2 so there's space between the blocks so we don't get sprite glitches
+    collide_right = collide(player, objects, PLAYER_VEL * 3)
 
-    if keys[pygame.K_LEFT] and not collide_left:
+    if keys[pygame.K_LEFT] and not collide_left and not game_over:
         player.move_left(PLAYER_VEL)
-    if keys[pygame.K_RIGHT] and not collide_right:
+    if keys[pygame.K_RIGHT] and not collide_right and not game_over:
         player.move_right(PLAYER_VEL)
     
     vertical_collide = handle_vertical_collision(player, objects, player.y_vel)
@@ -418,20 +452,20 @@ def main(window):
     background, bg_image = get_background("Blue.png")
 
     block_size = 96
-    box_size = 96
     flag_size = 64
     fruit_size = 32
 
+    fruit_height = HEIGHT - 64
+    flag_height = HEIGHT - 128
+    fire_height = HEIGHT - 64
+
     player = Player(100, 100, 50, 50)
-    fire = Fire(block_size*6.35, HEIGHT - block_size - 64 + (block_size * 2) // 3, 16, 32)
+    fire = Fire(block_size*6.35, fire_height - block_size + (block_size * 2) // 3, 16, 32)
     fire.on()
 
-    box = Box(block_size*8, HEIGHT - block_size * 3, box_size)
-    flag = Flag(block_size*20, HEIGHT - block_size * 5 - 128, flag_size, flag_size)
-    fruit = Fruit(block_size*3, HEIGHT - block_size - fruit_size * 2, fruit_size, fruit_size)
-
-    score = [Score(WIDTH - 100 - (i * fruit_size), fruit_size, fruit_size*2) 
-             for i in range(player.score)]
+    box = Box(block_size*8, HEIGHT - block_size * 3, 28, 24)
+    flag = Flag(block_size*20, flag_height - block_size * 5, flag_size)
+    fruit = Fruit(block_size*3, fruit_height - block_size, fruit_size, "Strawberry")
 
     floor = [Block(i * block_size, HEIGHT - block_size, block_size) 
              for i in range(0, (WIDTH * 2) // block_size)]
@@ -440,8 +474,7 @@ def main(window):
 
     begin_wall = [Block(0, HEIGHT - block_size * i, block_size) for i in range(0,9)]
 
-    extra_blocks = [Block(block_size * 6, HEIGHT - block_size * 3, block_size),
-                    Block(block_size * 9, HEIGHT - block_size * 4, block_size),
+    extra_blocks = [Block(block_size * 9, HEIGHT - block_size * 4, block_size),
                     Block(block_size * 10, HEIGHT - block_size * 4, block_size),
                     Block(block_size * 12, HEIGHT - block_size * 3, block_size),
                     Block(block_size * 13, HEIGHT - block_size * 3, block_size),
@@ -451,7 +484,7 @@ def main(window):
     ending_blocks = [Block(block_size * 19, HEIGHT - block_size * 5, block_size),
                      Block(block_size * 20, HEIGHT - block_size * 5, block_size)]
     
-    objects = [*floor, *begin_wall, *extra_blocks, *ending_blocks, fire, flag, fruit]
+    objects = [*floor, *begin_wall, *extra_blocks, *ending_blocks, fire, flag, fruit, box]
 
     offset_x = 0
     scroll_area_width = block_size
@@ -465,19 +498,21 @@ def main(window):
                 run = False
                 break
                 
-            if event.type == pygame.KEYDOWN:
+            if event.type == pygame.KEYDOWN and not flag.touch:
                 if event.key == pygame.K_SPACE and player.jump_count < 2:
                     player.jump()
 
         if player.score > 0:
-            objects.append(Score(WIDTH - 50 - (player.score * fruit_size), 25, fruit_size*2))
-
+            objects.append(Score(WIDTH - 50 - (player.score * fruit_size), 25, fruit_size*2, "Strawberry"))
+        
         player.loop(FPS)
         fire.loop()
         flag.loop()
         if fruit.continue_animation:
             fruit.loop()
-        handle_move(player, objects)
+        if box.continue_animation:
+            box.loop()
+        handle_move(player, objects, flag.touch)
         draw(window, background, bg_image, player, objects, offset_x)
 
         if((player.rect.right - offset_x >= WIDTH - scroll_area_width * 2) and (player.x_vel > 0)) or (
