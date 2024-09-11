@@ -27,7 +27,7 @@ def get_background(name):
     return tiles, image
 
 
-def draw(window, background, bg_image, player, objects, offset_x=0, scoring=[]):
+def draw(window, background, bg_image, players, objects, offset_x=0, scoring=[]):
     for (
         tile
     ) in (
@@ -41,7 +41,8 @@ def draw(window, background, bg_image, player, objects, offset_x=0, scoring=[]):
     for obj in objects:
         obj.draw(window, offset_x)
 
-    player.draw(window, offset_x)
+    for player in players:
+        player.draw(window, offset_x)
 
     pygame.display.update()
 
@@ -50,8 +51,7 @@ def handle_vertical_collision(player, objects, dy):
     collided_objects = []
     for obj in objects:
         if pygame.sprite.collide_mask(player, obj):
-            if obj.name != "fruit":
-
+            if not obj.pass_through:
                 if dy > 0:
                     player.rect.bottom = obj.rect.top
                     player.landed()
@@ -62,10 +62,11 @@ def handle_vertical_collision(player, objects, dy):
                     player.hit_head()
                     if obj.name == "box":
                         obj.make_hit()
-
                 collided_objects.append(obj)
-            else:
+            elif obj.name == "fruit":
                 obj.make_touch(player)
+            else:
+                pass
 
     return collided_objects
 
@@ -80,6 +81,8 @@ def collide(player, objects, dx):
             if obj.name == "fruit":
                 obj.make_touch(player)
                 break
+            elif obj.pass_through:
+                break
             else:
                 collided_object = obj
                 break
@@ -90,24 +93,34 @@ def collide(player, objects, dx):
     return collided_object
 
 
-def handle_move(player, objects, game_over=False):
-    keys = pygame.key.get_pressed()
+def handle_move(player, objects, game_over=False, left_bound=0, right_bound=WIDTH * 10):
+    if player and not player.pass_through:
+        keys = pygame.key.get_pressed()
 
-    player.x_vel = 0  # resetting velocity
-    collide_left = collide(
-        player, objects, -PLAYER_VEL * 2
-    )  # multiplies by 2 so there's space between the blocks so we don't get sprite glitches
-    collide_right = collide(player, objects, PLAYER_VEL * 2)
+        player.x_vel = 0  # resetting velocity
+        collide_left = collide(
+            player, objects, -PLAYER_VEL * 2
+        )  # multiplies by 2 so there's space between the blocks so we don't get sprite glitches
+        collide_right = collide(player, objects, PLAYER_VEL * 2)
 
-    if keys[pygame.K_LEFT] and not collide_left and not game_over:
-        player.move_left(PLAYER_VEL)
-    if keys[pygame.K_RIGHT] and not collide_right and not game_over:
-        player.move_right(PLAYER_VEL)
+        if not game_over:
+            if (
+                keys[pygame.K_LEFT]
+                and not collide_left
+                and player.rect.left > left_bound
+            ):
+                player.move_left(PLAYER_VEL)
+            if (
+                keys[pygame.K_RIGHT]
+                and not collide_right
+                and player.rect.right < right_bound
+            ):
+                player.move_right(PLAYER_VEL)
 
-    vertical_collide = handle_vertical_collision(player, objects, player.y_vel)
-    to_check = [collide_left, collide_right, *vertical_collide]
-    for obj in to_check:
-        if obj and obj.name == "fire":
-            player.make_hit()
-        if obj and obj.name == "flag":
-            obj.make_touch()
+        vertical_collide = handle_vertical_collision(player, objects, player.y_vel)
+        to_check = [collide_left, collide_right, *vertical_collide]
+        for obj in to_check:
+            if obj and obj.name == "fire":
+                player.make_hit()
+            if obj and obj.name == "flag":
+                obj.make_touch()

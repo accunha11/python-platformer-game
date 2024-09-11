@@ -1,21 +1,47 @@
 import pygame
 
 from .sprite_helpers import *
-
+from helpers.constants import *
 
 class Object(pygame.sprite.DirtySprite):
-    def __init__(self, x, y, width, height, name=None):
+    GRAVITY = 20
+    def __init__(self, x, y, width, height, name=None, pass_through=False):
         super().__init__()
         # All the properties we need for each sprite
         self.rect = pygame.Rect(x, y, width, height)
         self.image = pygame.Surface((width, height), pygame.SRCALPHA)
+        self.mask = pygame.mask.from_surface(self.image)
         self.width = width
         self.height = height
         self.name = name
+        self.pass_through = pass_through
+        self.x = x
+        self.y = y
+        self.fall_count = 0
+
+    def clicked(self, position):
+        x, y = position
+        x -= self.rect.x
+        y -= self.rect.y
+        try:
+            self.mask.get_at((x, y))
+            return True
+        except IndexError:
+            return False
+
+    def trigger_gravity(self, stop=HEIGHT):
+        self.pass_through = True
+        if self.rect.y < stop:
+            self.rect.y += (self.fall_count / FPS) * self.GRAVITY
+            self.fall_count += 1
+        else:
+            self.land()
+    
+    def land(self):
+        self.pass_through = False
 
     def draw(self, win, offset_x):
         win.blit(self.image, (self.rect.x - offset_x, self.rect.y))
-
 
 class Text(Object):
     def __init__(self, x, y, scale, letter_tuple=(0, 0), is_white=True):
@@ -26,11 +52,13 @@ class Text(Object):
 
 
 class Block(Object):
-    def __init__(self, x, y, size):
-        super().__init__(x, y, size, size)
+
+    def __init__(self, x, y, size, is_floor=False):
+        super().__init__(x, y, size, size, "block")
         block = get_block(size)
         self.image.blit(block, (0, 0))
         self.mask = pygame.mask.from_surface(self.image)
+        self.is_floor = is_floor
 
 
 class Fire(Object):
@@ -144,7 +172,7 @@ class Fruit(Object):
     ANIMATION_DELAY = 3
 
     def __init__(self, x, y, size, fruit_name, visible=True):
-        super().__init__(x, y, size, size, "fruit")
+        super().__init__(x, y, size, size, "fruit", True)
         self.fruit = load_sprite_sheets("Items", "Fruits", size, size)
         if visible:
             self.image = self.fruit[fruit_name][0]

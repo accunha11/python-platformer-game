@@ -2,6 +2,7 @@
 WIDTH, HEIGHT = 875, 700
 FPS = 60
 PLAYER_VEL = 5
+GRAVITY = 1
 
 # Standardize object sizes
 BLOCK_SIZE = 96
@@ -9,6 +10,7 @@ FLAG_SIZE = 64
 FRUIT_SIZE = 32
 BOX_WIDTH = 28
 BOX_HEIGHT = 24
+PLAYER_SIZE = 50
 
 # Object offsets so they're spaced accordingly
 FRUIT_HEIGHT_OFFSET = HEIGHT - 64
@@ -16,6 +18,10 @@ FLAG_HEIGHT_OFFSET = HEIGHT - 128
 FIRE_HEIGHT_OFFSET = HEIGHT - 64
 HIDDEN_FRUIT_HEIGHT_OFFSET = HEIGHT - 9
 HIDDEN_FRUIT_WIDTH_OFFSET = -5
+PLAYER_OPTION_HEIGHT_OFFSET = HEIGHT - 64
+
+# Player options
+PLAYER_OPTIONS = ["MaskDude", "NinjaFrog", "PinkMan", "VirtualGuy"]
 
 # Tuples storing location of each leter in sprite sheet
 TEXT_A = (0, 0)

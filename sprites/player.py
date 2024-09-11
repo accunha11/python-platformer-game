@@ -1,6 +1,7 @@
 import pygame
 
 from .sprite_helpers import load_sprite_sheets
+from helpers.constants import *
 
 
 class Player(
@@ -10,10 +11,10 @@ class Player(
     GRAVITY = 1
     ANIMATION_DELAY = 3
 
-    def __init__(self, x, y, width, height, sprites="NinjaFrog"):
+    def __init__(self, x, y, size, sprites="NinjaFrog"):
         super().__init__()
         self.sprites = load_sprite_sheets("MainCharacters", sprites, 32, 32, True)
-        self.rect = pygame.Rect(x, y, width, height)
+        self.rect = pygame.Rect(x, y, size, size)
         self.x_vel = 0
         self.y_vel = 0
         self.mask = None
@@ -24,6 +25,7 @@ class Player(
         self.hit = False
         self.hit_count = 0
         self.score = 0
+        self.pass_through = False
 
     def jump(self):
         self.y_vel = (
@@ -68,14 +70,14 @@ class Player(
             self.animation_count = 0
 
     def loop(
-        self, fps
+        self
     ):  # be called once every frame, moves characters and updates animation
-        self.y_vel += min(1, (self.fall_count / fps) * self.GRAVITY)
+        self.y_vel += min(1, (self.fall_count / FPS) * self.GRAVITY)
         self.move(self.x_vel, self.y_vel)
 
         if self.hit:
             self.hit_count += 1
-        if self.hit_count > fps * 2:
+        if self.hit_count > FPS * 2:
             self.hit = False
             self.hit_count = 0
 

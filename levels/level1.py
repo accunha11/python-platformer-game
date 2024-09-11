@@ -6,11 +6,10 @@ from sprites.player import Player
 from helpers.helper_functions import get_background, draw, handle_move
 
 
-def level1(window):
+def level1(window, player):
     clock = pygame.time.Clock()
     background, bg_image = get_background("Blue.png")
-
-    player = Player(100, 100, 50, 50)
+    
     fire = Fire(
         BLOCK_SIZE * 6.35,
         FIRE_HEIGHT_OFFSET - BLOCK_SIZE + (BLOCK_SIZE * 2) // 3,
@@ -107,7 +106,7 @@ def level1(window):
                 if event.key == pygame.K_SPACE and player.jump_count < 2:
                     player.jump()
 
-        player.loop(FPS)
+        player.loop()
         fire.loop()
         flag.loop()
         box.loop()
@@ -126,7 +125,7 @@ def level1(window):
         ]
 
         handle_move(player, objects, flag.end_game)
-        draw(window, background, bg_image, player, objects, offset_x, scoring)
+        draw(window, background, bg_image, [player], objects, offset_x, scoring)
 
         if (
             (player.rect.right - offset_x >= WIDTH - scroll_area_width * 2)

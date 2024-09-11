@@ -8,21 +8,31 @@ window = pygame.display.set_mode((WIDTH, HEIGHT))
 from sprites.objects import *
 from sprites.player import *
 from helpers.helper_functions import *
-from levels.level1 import level1
+from screens.transition import transition
 
 
 def main(window):
     clock = pygame.time.Clock()
     background, bg_image = get_background("Blue.png")
 
-    player = Player(WIDTH // 2 - 50, HEIGHT - BLOCK_SIZE, 50, 50)
-    player.direction = "right"
     floor = [
-        Block(i * BLOCK_SIZE, HEIGHT - BLOCK_SIZE, BLOCK_SIZE)
+        Block(i * BLOCK_SIZE, HEIGHT - BLOCK_SIZE, BLOCK_SIZE, True)
         for i in range(0, (WIDTH * 2) // BLOCK_SIZE)
     ]
 
-    objects = [*floor]
+    letter = Text(100, 100, 4, TEXT_A)
+
+    player_options = [
+        Player(
+            (BLOCK_SIZE * 2.25) + (BLOCK_SIZE * 1.25 * i),
+            PLAYER_OPTION_HEIGHT_OFFSET - BLOCK_SIZE*3,
+            PLAYER_SIZE,
+            PLAYER_OPTIONS[i],
+        )
+        for i in range(len(PLAYER_OPTIONS))
+    ]
+
+    objects = [*floor, letter]
 
     run = True
     while run:
@@ -36,12 +46,17 @@ def main(window):
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
                     click_pos = pygame.mouse.get_pos()
-                    if player.clicked(click_pos):
-                        level1(window)
+                    for player in player_options:
+                        if player.clicked(click_pos):
+                            player_options.remove(player)
+                            transition(window, player, objects, player_options)
+                            break
 
-        player.loop(FPS)
-        handle_move(player, objects, True)
-        draw(window, background, bg_image, player, objects)
+        for player in player_options:
+            player.loop()
+            handle_move(player, objects, True)
+
+        draw(window, background, bg_image, player_options, objects)
 
     pygame.quit()
     quit()
