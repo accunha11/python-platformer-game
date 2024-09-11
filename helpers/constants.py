@@ -1,15 +1,67 @@
+# Game constants
 WIDTH, HEIGHT = 875, 700
 FPS = 60
 PLAYER_VEL = 5
 
+# Standardize object sizes
 BLOCK_SIZE = 96
 FLAG_SIZE = 64
 FRUIT_SIZE = 32
 BOX_WIDTH = 28
 BOX_HEIGHT = 24
 
+# Object offsets so they're spaced accordingly
 FRUIT_HEIGHT_OFFSET = HEIGHT - 64
 FLAG_HEIGHT_OFFSET = HEIGHT - 128
-FIRE_HEIGHT_OFFSET = HEIGHT - 64  
+FIRE_HEIGHT_OFFSET = HEIGHT - 64
 HIDDEN_FRUIT_HEIGHT_OFFSET = HEIGHT - 9
 HIDDEN_FRUIT_WIDTH_OFFSET = -5
+
+# Tuples storing location of each leter in sprite sheet
+TEXT_A = (0, 0)
+TEXT_B = (8, 0)
+TEXT_C = (16, 0)
+TEXT_D = (24, 0)
+TEXT_E = (32, 0)
+TEXT_F = (40, 0)
+TEXT_G = (48, 0)
+TEXT_H = (56, 0)
+TEXT_I = (64, 0)
+TEXT_J = (72, 0)
+TEXT_K = (0, 10)
+TEXT_L = (8, 10)
+TEXT_M = (16, 10)
+TEXT_N = (24, 10)
+TEXT_O = (32, 10)
+TEXT_P = (40, 10)
+TEXT_Q = (48, 10)
+TEXT_R = (56, 10)
+TEXT_S = (64, 10)
+TEXT_T = (72, 10)
+TEXT_U = (0, 20)
+TEXT_V = (8, 20)
+TEXT_W = (16, 20)
+TEXT_X = (24, 20)
+TEXT_Y = (32, 20)
+TEXT_Z = (40, 20)
+
+TEXT_0 = (0, 30)
+TEXT_1 = (8, 30)
+TEXT_2 = (16, 30)
+TEXT_3 = (24, 30)
+TEXT_4 = (32, 30)
+TEXT_5 = (40, 30)
+TEXT_6 = (48, 30)
+TEXT_7 = (56, 30)
+TEXT_8 = (64, 30)
+TEXT_9 = (72, 30)
+
+TEXT_PERIOD = (0, 40)
+TEXT_COMMA = (8, 40)
+TEXT_COLON = (16, 40)
+TEXT_QUESTION = (24, 40)
+TEXT_EXCLAMATION = (32, 40)
+TEXT_OPEN_PARENTHESIS = (40, 40)
+TEXT_CLOSE_PARENTHESIS = (48, 40)
+TEXT_PLUS = (56, 40)
+TEXT_MINUS = (64, 40)

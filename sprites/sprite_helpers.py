@@ -2,17 +2,23 @@ import pygame
 from os import listdir
 from os.path import isfile, join
 
+
 def flip(sprites):
     return [pygame.transform.flip(sprite, True, False) for sprite in sprites]
 
+
 def load_sprite_sheets(dir1, dir2, width, height, direction=False):
     path = join("assets", dir1, dir2)
-    images = [f for f in listdir(path) if isfile(join(path, f))] # load every single file that is inside a character's directory
+    images = [
+        f for f in listdir(path) if isfile(join(path, f))
+    ]  # load every single file that is inside a character's directory
 
-    all_sprites = {} # key is animation style and value is images in animation
+    all_sprites = {}  # key is animation style and value is images in animation
 
     for image in images:
-        sprite_sheet = pygame.image.load(join(path, image)).convert_alpha() # convert alpha gives transparent background
+        sprite_sheet = pygame.image.load(
+            join(path, image)
+        ).convert_alpha()  # convert alpha gives transparent background
 
         sprites = []
         for i in range(sprite_sheet.get_width() // width):
@@ -21,9 +27,11 @@ def load_sprite_sheets(dir1, dir2, width, height, direction=False):
             # We need to draw that onto the surface and then export the surface
             surface = pygame.Surface((width, height), pygame.SRCALPHA, 32)
             rect = pygame.Rect(i * width, 0, width, height)
-            surface.blit(sprite_sheet, (0,0), rect) # source, destination, area of the source that we're drawing
+            surface.blit(
+                sprite_sheet, (0, 0), rect
+            )  # source, destination, area of the source that we're drawing
             sprites.append(pygame.transform.scale2x(surface))
-        
+
         if direction:
             all_sprites[image.replace(".png", "") + "_right"] = sprites
             all_sprites[image.replace(".png", "") + "_left"] = flip(sprites)
@@ -32,10 +40,27 @@ def load_sprite_sheets(dir1, dir2, width, height, direction=False):
 
     return all_sprites
 
+
 def get_block(size):
     path = join("assets", "Terrain", "Terrain.png")
     image = pygame.image.load(path).convert_alpha()
     surface = pygame.Surface((size, size), pygame.SRCALPHA, 32)
-    rect = pygame.Rect(96, 0, size, size) #change number values and size to load a different image for our block
+    rect = pygame.Rect(
+        96, 0, size, size
+    )  # change number values and size to load a different image for our block
     surface.blit(image, (0, 0), rect)
     return pygame.transform.scale2x(surface)
+
+def get_text(letter_tuple, scale, is_white):
+    x, y = letter_tuple
+    text_file = "Text (Black) (8x10).png"
+    if is_white:
+        text_file = "Text (White) (8x10).png"
+    path = join("assets", "Menu", "Text", text_file)
+    image = pygame.image.load(path).convert_alpha()
+    surface = pygame.Surface((8, 10), pygame.SRCALPHA, 32)
+    rect = pygame.Rect(
+        x, y, 8, 10
+    )  # change number values and size to load a different image for our block
+    surface.blit(image, (0, 0), rect)
+    return pygame.transform.scale_by(surface, scale)
