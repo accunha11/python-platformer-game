@@ -148,6 +148,34 @@ class Score(Object):
         self.mask = pygame.mask.from_surface(self.image)
 
 
+class Trophy(Object):
+    ANIMATION_DELAY = 4
+
+    def __init__(self, x, y, size):
+        super().__init__(x, y, size, size, "start_flag")
+        self.flag = load_sprite_sheets("Items/Checkpoints", "End", size, size)
+        self.image = self.flag["End (Pressed) (64x64)"][0]
+        self.mask = pygame.mask.from_surface(self.image)
+        self.animation_count = 0
+        self.animation_name = "End (Pressed) (64x64)"
+
+    def loop(self):
+        sprites = self.flag[self.animation_name]
+        sprite_index = (self.animation_count // self.ANIMATION_DELAY) % len(sprites)
+        if sprite_index < 3:
+            sprite_index = 3
+        self.image = sprites[sprite_index]
+        self.animation_count += 1
+
+        self.rect = self.image.get_rect(topleft=(self.rect.x, self.rect.y))
+        self.mask = pygame.mask.from_surface(self.image)
+
+        if self.animation_count // self.ANIMATION_DELAY > len(sprites):
+            self.animation_count = (
+                0  # letting the animation count get too big lags the program
+            )
+
+
 class Start_Flag(Object):
     ANIMATION_DELAY = 3
 
@@ -186,6 +214,7 @@ class Flag(Object):
         self.animation_count = 0
         self.animation_name = "Checkpoint (No Flag)"
         self.end_game = False
+        self.flag_out = False
 
     def make_touch(self):
         if self.animation_name == "Checkpoint (No Flag)":
@@ -206,6 +235,8 @@ class Flag(Object):
             self.animation_count = 0
             if self.animation_name == "Checkpoint (Flag Out) (64x64)":
                 self.animation_name = "Checkpoint (Flag Idle)(64x64)"
+            elif self.animation_name == "Checkpoint (Flag Idle)(64x64)":
+                self.flag_out = True
 
 
 class Fruit(Object):

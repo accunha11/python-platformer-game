@@ -2,7 +2,7 @@ import pygame
 from helpers.constants import *
 
 from sprites.objects import *
-from sprites.player import Player
+from screens.game_over import game_over
 from helpers.helper_functions import get_background, draw, handle_move
 
 
@@ -132,6 +132,10 @@ def level1(window, player, start_flag, offset_x):
             Score(WIDTH - FRUIT_SIZE * i - 75, 25, FRUIT_SIZE, "Strawberry")
             for i in range(player.score)
         ]
+
+        if flag.flag_out:
+            game_over(window, player, objects, [fire, flag, box], offset_x)
+            break
 
         handle_move(player, objects, flag.end_game, left_bound=WIDTH-BLOCK_SIZE)
         draw(window, background, bg_image, [player], objects, offset_x, scoring)
