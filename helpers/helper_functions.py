@@ -93,7 +93,7 @@ def collide(player, objects, dx):
     return collided_object
 
 
-def handle_move(player, objects, game_over=False, left_bound=0, right_bound=WIDTH * 10):
+def handle_move(player, objects, game_over=False, left_bound=0, right_bound=(WIDTH*10)):
     if player and not player.pass_through:
         keys = pygame.key.get_pressed()
 
@@ -103,7 +103,7 @@ def handle_move(player, objects, game_over=False, left_bound=0, right_bound=WIDT
         )  # multiplies by 2 so there's space between the blocks so we don't get sprite glitches
         collide_right = collide(player, objects, PLAYER_VEL * 2)
 
-        if not game_over:
+        if not game_over and not player.frozen:
             if (
                 keys[pygame.K_LEFT]
                 and not collide_left

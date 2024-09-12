@@ -1,16 +1,19 @@
 import pygame
 from helpers.constants import *
 
+from sprites.objects import *
 from helpers.helper_functions import get_background, draw, handle_move
 from levels.level1 import level1
 
-
-def transition(window, player, objects, players):
+def transition(window, player, old_objects, players):
     clock = pygame.time.Clock()
     background, bg_image = get_background("Blue.png")
 
+    start_flag = Start_Flag(BLOCK_SIZE * 8, 0, 64)
+
+    objects = [*old_objects, start_flag]
+
     offset_x = 0
-    scroll_area_width = BLOCK_SIZE
 
     run = True
     while run:
@@ -26,10 +29,11 @@ def transition(window, player, objects, players):
                     player.jump()
 
         player.loop()
+        start_flag.loop()
 
-        if player.rect.right >= WIDTH + BLOCK_SIZE * 2:
-            player.rect.right = BLOCK_SIZE * 2
-            level1(window, player)
+        if player.rect.right >= WIDTH:
+            player.frozen = True
+            level1(window, player, start_flag, offset_x)
             break
 
         for pl in players:
@@ -39,21 +43,14 @@ def transition(window, player, objects, players):
                 handle_move(player, objects)
 
         for obj in objects:
-            if (obj.name == "block" and not obj.is_floor) or obj.name != "block":
+            if(obj.name == "start_flag"):
+                obj.trigger_gravity(FLAG_HEIGHT_OFFSET - BLOCK_SIZE)
+                obj.pass_through = True
+            elif (obj.name == "block" and not obj.is_floor) or obj.name != "block":
                 obj.trigger_gravity(HEIGHT*2)
 
         handle_move(player, objects)
         draw(window, background, bg_image, [player, *players], objects, offset_x)
-
-        if (
-            (player.rect.right - offset_x >= WIDTH - scroll_area_width * 2)
-            and (player.x_vel > 0)
-        ) or (
-            (player.rect.left - offset_x <= scroll_area_width)
-            and (player.x_vel < 0)
-            and (player.rect.left > scroll_area_width)
-        ):
-            offset_x += player.x_vel
 
     pygame.quit()
     quit()

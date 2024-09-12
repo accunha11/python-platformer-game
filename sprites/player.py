@@ -26,6 +26,7 @@ class Player(
         self.hit_count = 0
         self.score = 0
         self.pass_through = False
+        self.frozen = False
 
     def jump(self):
         self.y_vel = (

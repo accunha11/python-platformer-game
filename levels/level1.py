@@ -1,26 +1,26 @@
 import pygame
 from helpers.constants import *
 
-from sprites.objects import Block, Box, Flag, Fire, Fruit, Score
+from sprites.objects import *
 from sprites.player import Player
 from helpers.helper_functions import get_background, draw, handle_move
 
 
-def level1(window, player):
+def level1(window, player, start_flag, offset_x):
     clock = pygame.time.Clock()
     background, bg_image = get_background("Blue.png")
-    
+
     fire = Fire(
-        BLOCK_SIZE * 6.35,
+        BLOCK_SIZE * 6.25,
         FIRE_HEIGHT_OFFSET - BLOCK_SIZE + (BLOCK_SIZE * 2) // 3,
         16,
         32,
     )
     fire.on()
 
-    box = Box(BLOCK_SIZE * 6.25, HEIGHT - BLOCK_SIZE * 2.85, BOX_WIDTH, BOX_HEIGHT)
+    box = Box(BLOCK_SIZE * 6.15, HEIGHT - BLOCK_SIZE * 2.85, BOX_WIDTH, BOX_HEIGHT)
     hidden_fruit = Fruit(
-        BLOCK_SIZE * 6.25 + HIDDEN_FRUIT_WIDTH_OFFSET,
+        BLOCK_SIZE * 6.15 + HIDDEN_FRUIT_WIDTH_OFFSET,
         HIDDEN_FRUIT_HEIGHT_OFFSET - BLOCK_SIZE * 2.85,
         FRUIT_SIZE,
         "Strawberry",
@@ -56,13 +56,11 @@ def level1(window, player):
     ]
 
     floor = [
-        Block(i * BLOCK_SIZE, HEIGHT - BLOCK_SIZE, BLOCK_SIZE)
-        for i in range(0, (WIDTH * 2) // BLOCK_SIZE)
+        Block(i * BLOCK_SIZE - WIDTH, HEIGHT - BLOCK_SIZE, BLOCK_SIZE)
+        for i in range(0, (WIDTH * 3) // BLOCK_SIZE)
     ]
 
-    floor[6] = Block(BLOCK_SIZE * 6, HEIGHT - BLOCK_SIZE // 3, BLOCK_SIZE)
-
-    begin_wall = [Block(0, HEIGHT - BLOCK_SIZE * i, BLOCK_SIZE) for i in range(0, 9)]
+    floor[15] = Block(BLOCK_SIZE * 15 - WIDTH, HEIGHT - BLOCK_SIZE // 3, BLOCK_SIZE)
 
     extra_blocks = [
         Block(BLOCK_SIZE * 9, HEIGHT - BLOCK_SIZE * 4, BLOCK_SIZE),
@@ -78,9 +76,11 @@ def level1(window, player):
         Block(BLOCK_SIZE * 20, HEIGHT - BLOCK_SIZE * 5, BLOCK_SIZE),
     ]
 
+    start_flag.pass_through = True
+    start_flag.rect.x -= WIDTH - BLOCK_SIZE*2
+
     objects = [
         *floor,
-        *begin_wall,
         *extra_blocks,
         *ending_blocks,
         fire,
@@ -88,9 +88,12 @@ def level1(window, player):
         box,
         *fruits,
         hidden_fruit,
+        start_flag
     ]
 
-    offset_x = 0
+    for obj in objects:
+        obj.rect.x += WIDTH - BLOCK_SIZE * 2
+
     scroll_area_width = BLOCK_SIZE
 
     run = True
@@ -110,6 +113,12 @@ def level1(window, player):
         fire.loop()
         flag.loop()
         box.loop()
+        start_flag.loop()
+
+        if offset_x < WIDTH - BLOCK_SIZE:
+            offset_x += 5
+        else:
+            player.frozen = False
 
         if box.animation_name == "Break":
             hidden_fruit.change_visibility()
@@ -124,7 +133,7 @@ def level1(window, player):
             for i in range(player.score)
         ]
 
-        handle_move(player, objects, flag.end_game)
+        handle_move(player, objects, flag.end_game, left_bound=WIDTH-BLOCK_SIZE)
         draw(window, background, bg_image, [player], objects, offset_x, scoring)
 
         if (
