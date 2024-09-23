@@ -7,4 +7,4 @@ Feel free to play it on your own machine (and maybe even add some levels of your
 
 Here's a quick demo of what it currently looks like:
 
-![Screen Recording 2024-09-23 at 6 22 26 PM](https://github.com/user-attachments/assets/07c5281e-81ba-49ce-94b8-77292902db6f)
+![Python Platformer GIF](https://github.com/user-attachments/assets/fcd4f0a9-e745-4925-ae09-af1b56d5c2f5)
